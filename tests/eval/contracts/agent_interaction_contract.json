@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AgentOrchestrationContract",
+  "description": "Trajectory and Interaction contract for Cymbal Operations Agent",
+  "type": "object",
+  "properties": {
+    "agent_name": {"type": "string", "const": "cymbal_operations_agent"},
+    "model": {"type": "string", "const": "gemini-3.6-flash"},
+    "dispatch_patterns": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["pattern_id", "dispatch_type", "expected_tools"],
+        "properties": {
+          "pattern_id": {"type": "string"},
+          "dispatch_type": {"type": "string", "enum": ["SINGLE", "PARALLEL", "SEQUENTIAL", "GUARDRAIL_REFUSAL"]},
+          "expected_tools": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    }
+  },
+  "required": ["agent_name", "model", "dispatch_patterns"]
+}

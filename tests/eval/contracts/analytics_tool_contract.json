@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "BigQueryAnalyticsContract",
+  "description": "Data contract for BigQuery Data Agent Analytics Tool",
+  "type": "object",
+  "properties": {
+    "system": {
+      "type": "object",
+      "properties": {
+        "data_agent_resource": {"type": "string"},
+        "max_bytes_billed": {"type": "integer", "const": 10737418240}
+      },
+      "required": ["data_agent_resource", "max_bytes_billed"]
+    },
+    "input": {
+      "type": "object",
+      "required": ["prompt"],
+      "properties": {
+        "prompt": {"type": "string"}
+      }
+    },
+    "output": {
+      "type": "object",
+      "required": ["answer", "status"],
+      "properties": {
+        "status": {"type": "string", "enum": ["SUCCESS", "QUERY_GUARDRAIL_EXCEEDED", "ERROR"]},
+        "answer": {"type": "string"},
+        "sql_query": {"type": "string"},
+        "referenced_tables": {"type": "array", "items": {"type": "string"}},
+        "bytes_billed": {"type": "integer"}
+      }
+    }
+  },
+  "required": ["system", "input", "output"]
+}

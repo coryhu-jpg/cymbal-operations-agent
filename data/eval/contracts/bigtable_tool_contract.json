@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "BigtableMCPToolContract",
+  "description": "Data contract for Bigtable Operational Cache MCP Tool",
+  "type": "object",
+  "properties": {
+    "system": {
+      "type": "object",
+      "properties": {
+        "service_url": {"type": "string"},
+        "instance_id": {"type": "string"},
+        "table_id": {"type": "string"}
+      },
+      "required": ["service_url", "instance_id", "table_id"]
+    },
+    "input": {
+      "type": "object",
+      "required": ["store_id", "cashier_id"],
+      "properties": {
+        "store_id": {"type": "string"},
+        "cashier_id": {"type": "string"}
+      }
+    },
+    "output": {
+      "type": "object",
+      "required": ["row_key", "stats", "flags"],
+      "properties": {
+        "row_key": {"type": "string", "pattern": "^STORE_[0-9]{3}#CASH_[0-9]{4}$"},
+        "stats": {
+          "type": "object",
+          "properties": {
+            "override_count_1h": {"type": "integer"},
+            "total_scan_count_1h": {"type": "integer"},
+            "override_rate_1h": {"type": "number"},
+            "last_updated_epoch_ms": {"type": "integer"}
+          }
+        },
+        "flags": {
+          "type": "object",
+          "properties": {
+            "audit_required": {"type": "boolean"},
+            "promo_abuse_alert": {"type": "boolean"},
+            "last_alert_id": {"type": "string"}
+          }
+        }
+      }
+    }
+  },
+  "required": ["system", "input", "output"]
+}

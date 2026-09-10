@@ -1,0 +1,83 @@
+{
+  "eval_set_id": "cymbal_operations_agent_functional_eval_v1",
+  "name": "Cymbal Operations Agent Functional & Multi-System Dataset",
+  "description": "Functional evaluation dataset covering single-dispatch, parallel-dispatch, and sequential multi-turn retail operations use cases.",
+  "eval_cases": [
+    {
+      "eval_case_id": "uc_1_1a_hardware_error_emv_freeze",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "What is the immediate field recovery protocol when a cashier encounters an ERR-PAY-4001 EMV contactless payment freeze, and how do we ensure the customer is not double-charged?"
+          }
+        ]
+      },
+      "reference": {
+        "expected_tool": "pos_troubleshooting_rag_tool",
+        "expected_keywords": ["Toshiba TCx 810", "double-charged", "soft-reset", "gs://"]
+      }
+    },
+    {
+      "eval_case_id": "uc_1_2a_stockout_risk_cover_hours",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "What is the estimated cover hours remaining for store inventory positions experiencing stockout risk of less than 20 hours, and what is their total on-hand inventory?"
+          }
+        ]
+      },
+      "reference": {
+        "expected_tool": "cymbal_analytics_tool",
+        "expected_keywords": ["cover hours", "on-hand inventory", "stockout risk"]
+      }
+    },
+    {
+      "eval_case_id": "uc_1_3_realtime_cashier_metrics",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Read live 1-hour rolling metrics and audit status flags for Cashier CASH_1190 at Store 48."
+          }
+        ]
+      },
+      "reference": {
+        "expected_tool": "bigtable_mcp_toolset",
+        "expected_keywords": ["STORE_048#CASH_1190", "override_rate", "total_scan_count_1h"]
+      }
+    },
+    {
+      "eval_case_id": "uc_2_1a_warranty_coverage",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Check transaction details for TXN-20260312-0015811 and show the warranty coverage policy for the purchased item."
+          }
+        ]
+      },
+      "reference": {
+        "expected_tool": "cymbal_analytics_tool",
+        "expected_keywords": ["TXN-20260312-0015811", "warranty"]
+      }
+    },
+    {
+      "eval_case_id": "uc_2_2_dual_cashier_baseline_parallel",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "What is Cashier CASH_1190's live 1-hour override rate right now, compared to their 7-day historical override baseline?"
+          }
+        ]
+      },
+      "reference": {
+        "dispatch_pattern": "PARALLEL_DISPATCH",
+        "expected_tools": ["bigtable_mcp_toolset", "cymbal_analytics_tool"],
+        "expected_keywords": ["live 1-hour override rate", "7-day historical"]
+      }
+    }
+  ]
+}

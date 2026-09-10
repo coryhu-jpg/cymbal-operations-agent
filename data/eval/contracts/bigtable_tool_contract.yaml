@@ -1,0 +1,90 @@
+# Bigtable MCP Tool Data Contract
+schema_version: "v1.0"
+contract_id: "contract-bigtable-mcp-003"
+title: "Cloud Bigtable Operational Cache MCP Tool Data Contract"
+owner: "Real-Time Streaming & Checkout Systems Team"
+status: "ACTIVE"
+
+system:
+  type: "Cloud Bigtable NoSQL via Cloud Run Model Context Protocol (MCP) Server"
+  service_url: "https://mcp-toolbox-bigtable-547486901530.us-central1.run.app"
+  instance_id: "operations-db"
+  table_id: "cashier_realtime_alerts"
+  auth_mechanism: "Google Cloud OIDC Bearer Token"
+
+data_schema:
+  row_key_specification:
+    format: "STORE_{store_id:03d}#CASH_{cashier_id}"
+    regex: "^STORE_[0-9]{3}#CASH_[0-9]{4}$"
+    example: "STORE_048#CASH_1190"
+  column_families:
+    - name: "stats"
+      description: "1-hour tumbling/hopping window streaming cashier metrics"
+      columns:
+        - name: "override_count_1h"
+          type: "INT64"
+          description: "Count of manager overrides executed in the last 60 minutes"
+        - name: "total_scan_count_1h"
+          type: "INT64"
+          description: "Total items scanned in the last 60 minutes"
+        - name: "override_rate_1h"
+          type: "FLOAT64"
+          description: "Calculated ratio: override_count_1h / total_scan_count_1h"
+        - name: "last_updated_epoch_ms"
+          type: "INT64"
+          description: "Unix epoch timestamp of last pipeline sink write"
+    - name: "flags"
+      description: "Continuous anomaly enrichment status flags"
+      columns:
+        - name: "audit_required"
+          type: "BOOLEAN"
+          description: "Flag indicating supervisor or internal audit review required"
+        - name: "promo_abuse_alert"
+          type: "BOOLEAN"
+          description: "Triggered if override_rate exceeds store baseline threshold"
+        - name: "last_alert_id"
+          type: "STRING"
+          description: "Surrogate alert identifier: ALT-ANOMALY-..."
+
+tool_interface:
+  tool_name: "bigtable_mcp_toolset"
+  input_contract:
+    type: "object"
+    required: ["store_id", "cashier_id"]
+    properties:
+      store_id:
+        type: "string"
+        description: "3-digit store identifier (e.g. '048' or '48')"
+      cashier_id:
+        type: "string"
+        description: "Cashier identifier (e.g. 'CASH_1190')"
+  output_contract:
+    type: "object"
+    required: ["row_key", "stats", "flags"]
+    properties:
+      row_key:
+        type: "string"
+      stats:
+        type: "object"
+        properties:
+          override_count_1h:
+            type: "integer"
+          total_scan_count_1h:
+            type: "integer"
+          override_rate_1h:
+            type: "number"
+          last_updated_epoch_ms:
+            type: "integer"
+      flags:
+        type: "object"
+        properties:
+          audit_required:
+            type: "boolean"
+          promo_abuse_alert:
+            type: "boolean"
+          last_alert_id:
+            type: "string"
+
+service_level_agreements:
+  p95_read_latency_ms: 150
+  token_refresh_interval_seconds: 3000

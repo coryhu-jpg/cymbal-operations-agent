@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "POSTroubleshootingRAGContract",
+  "description": "Data contract and schema for POS Troubleshooting RAG Tool",
+  "type": "object",
+  "properties": {
+    "system": {
+      "type": "object",
+      "properties": {
+        "dataset": {"type": "string", "const": "cymbal_gold"},
+        "table": {"type": "string", "const": "pos_manual_chunk_embeddings"},
+        "threshold": {"type": "number", "const": 0.70}
+      },
+      "required": ["dataset", "table", "threshold"]
+    },
+    "input": {
+      "type": "object",
+      "required": ["query"],
+      "properties": {
+        "query": {"type": "string"},
+        "top_k": {"type": "integer", "default": 3},
+        "threshold": {"type": "number", "default": 0.70}
+      }
+    },
+    "output": {
+      "type": "object",
+      "required": ["status", "response"],
+      "properties": {
+        "status": {"type": "string", "enum": ["CERTIFIED_MATCH", "UNCERTIFIED_FALLBACK", "TEXT_SEARCH_FALLBACK"]},
+        "matched_document": {"type": "string"},
+        "confidence_score": {"type": "number"},
+        "gcs_documentation_link": {"type": "string"},
+        "response": {"type": "string"}
+      }
+    }
+  },
+  "required": ["system", "input", "output"]
+}

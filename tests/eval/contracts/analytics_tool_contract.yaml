@@ -1,0 +1,75 @@
+# BigQuery Analytics Tool Data Contract
+schema_version: "v1.0"
+contract_id: "contract-bq-analytics-002"
+title: "BigQuery Lakehouse Data Agent Analytics Data Contract"
+owner: "Enterprise Data Analytics & Lakehouse Platform"
+status: "ACTIVE"
+
+system:
+  type: "Google BigQuery Data Agent (Conversational Analytics)"
+  data_agent_resource: "projects/elevate-data-advance/locations/global/dataAgents/gda-f3ad9f8f-c345-4e25-92d7-3e8f2f29d9c5"
+  governance:
+    authentication_mode: "OAuth Delegated End-User Credentials"
+    cost_guardrail:
+      max_bytes_billed: 10737418240 # 10 GB per analytical query execution
+      timeout_seconds: 60
+
+underlying_datasets:
+  - dataset_id: "cymbal_gold"
+    tables:
+      - name: "gold_inventory_reconciliation_ledger"
+        type: "TABLE"
+        partitioning: "business_date (DAY)"
+        clustering: ["store_id", "product_sku"]
+        key_metrics: ["cover_hours", "on_hand_qty", "safety_stock_level", "stockout_risk_flag"]
+      - name: "pos_transactions_gold"
+        type: "TABLE"
+        partitioning: "business_date (DAY)"
+        clustering: ["store_id", "cashier_id"]
+        key_metrics: ["net_amount", "gross_amount", "discount_amount", "line_items"]
+      - name: "pos_anomaly_alerts"
+        type: "TABLE"
+        partitioning: "alert_ts (DAY)"
+        clustering: ["store_id", "alert_type"]
+        key_metrics: ["risk_score", "alert_type", "cashier_id"]
+  - dataset_id: "cymbal_silver"
+    tables:
+      - name: "item_warranties_extracted"
+        type: "TABLE"
+        key_metrics: ["product_sku", "warranty_months", "policy_terms"]
+
+tool_interface:
+  tool_name: "cymbal_analytics_tool"
+  input_contract:
+    type: "object"
+    required: ["prompt"]
+    properties:
+      prompt:
+        type: "string"
+        description: "Analytical question requiring Lakehouse SQL synthesis, KPI calculation, or historical aggregation"
+  output_contract:
+    type: "object"
+    required: ["answer", "status"]
+    properties:
+      status:
+        type: "string"
+        enum: ["SUCCESS", "QUERY_GUARDRAIL_EXCEEDED", "ERROR"]
+      answer:
+        type: "string"
+        description: "Grounded analytical answer with exact numbers, currency, and unit measures"
+      sql_query:
+        type: "string"
+        description: "Generated and executed BigQuery SQL query"
+      referenced_tables:
+        type: "array"
+        items:
+          type: "string"
+        description: "List of Lakehouse tables used in execution"
+      bytes_billed:
+        type: "integer"
+        description: "Query execution byte footprint"
+
+service_level_agreements:
+  max_latency_ms: 5000
+  data_freshness: "Near real-time / Continuous Query streaming updates"
+  deterministic_metrics: true
