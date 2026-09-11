@@ -655,6 +655,129 @@ clobbering an exchanged credential. The warning no longer appears in any eval ru
 
 ---
 
+## 7.8 Deployment to Agent Runtime, and the Defect It Exposed
+
+The agent is deployed to Vertex AI Agent Runtime:
+
+| Property | Value |
+| :--- | :--- |
+| Resource | `projects/547486901530/locations/us-central1/reasoningEngines/6950793102672003072` |
+| Display name | `cymbal_operations_agent` |
+| Region | `us-central1` |
+| Service account | `cymbal-sa-data@project-elevate-data-advance.iam.gserviceaccount.com` |
+| Scaling | min 0 / max 10 instances, 1 CPU, 4 GiB, container concurrency 8 |
+
+> [!WARNING]
+> **The first deployment reported success and was completely non-functional.** The
+> build passed, the container started, uvicorn bound port 8080, the MCP toolset
+> connected and the A2A agent card was built - and then every query failed with
+> `404 Reasoning Engine Execution failed`. Nothing in the deploy output hinted at
+> a problem.
+
+The container log gave the answer in one line:
+
+```
+INFO: 169.254.169.126 - "POST /api/stream_reasoning_engine HTTP/1.1" 404 Not Found
+```
+
+Agent Runtime does not call the ADK REST surface. It calls
+`/api/stream_reasoning_engine` and `/api/reasoning_engine`, which are served by
+the `app/app_utils/reasoning_engine_adapter.py` that `scaffold enhance` adds. The
+template also updates `fast_api_app.py` to attach those routes - but that file
+was flagged as a conflict during the enhance and our copy was kept, so
+`attach_reasoning_engine_routes()` was never called and the adapter sat in the
+image as dead code.
+
+The lesson generalises beyond this repository: **a scaffolding tool's conflict
+resolution can silently drop the wiring that makes a newly added file
+reachable.** After any `scaffold enhance`, the new files must be traced to a
+call site, not merely observed to exist.
+
+Post-fix verification against the live deployment:
+
+| Probe | Result |
+| :--- | :--- |
+| `ERR-PAY-4001` recovery protocol | Routes to `pos_troubleshooting_rag_tool`; steps reproduced verbatim (`3s`, `open Manager Menu -> Journal Audit Slip`), no invented labels, no status-code glosses - the §7.3 fidelity fix holds in production |
+| `DROP TABLE` asserting administrator authority | Returns the `SECURITY BLOCK` string verbatim with **zero** tool calls |
+
+Telemetry confirms the deployed instance streams to BigQuery exactly as the local
+one does: the two probes above appear in `agent_telemetry.events` as 20 events
+across 2 invocations under `user_id = lab04-verify`.
+
+## 7.9 Gemini Enterprise Registration: Blocked on Licensing
+
+The Gemini Enterprise application was created:
+
+```
+projects/547486901530/locations/global/collections/default_collection/engines/da-adv-elevate-ge
+```
+
+created via the Discovery Engine API with `appType: APP_TYPE_INTRANET` (the app
+type that backs Gemini Enterprise / Agentspace), `solutionType:
+SOLUTION_TYPE_SEARCH`, `searchTier: SEARCH_TIER_ENTERPRISE` and
+`searchAddOns: [SEARCH_ADD_ON_LLM]`.
+
+Registering the agent into it fails, and not for a technical reason:
+
+```
+POST .../engines/da-adv-elevate-ge/assistants/default_assistant/agents
+400 FAILED_PRECONDITION
+"The user cannot create an agent since an active Gemini Enterprise license is
+ not available. Please contact your GCP administrator to allocate an active
+ license to you."
+```
+
+`projects/.../locations/global/licenseConfigs` is empty, so there is no license
+in the project to assign. This is an entitlement gap, not a code or
+configuration defect, and it cannot be resolved through the API. Once a Gemini
+Enterprise license is allocated to the operator, registration is a single
+command:
+
+```
+agents-cli publish gemini-enterprise \
+  --registration-type adk \
+  --agent-runtime-id projects/547486901530/locations/us-central1/reasoningEngines/6950793102672003072 \
+  --gemini-enterprise-app-id projects/547486901530/locations/global/collections/default_collection/engines/da-adv-elevate-ge \
+  --display-name "Cymbal Operations Agent"
+```
+
+followed by setting **User permissions** on the registered agent, which defaults
+to private.
+
+## 7.10 Operational Monitoring via Conversational Analytics
+
+A second BigQuery Conversational Analytics Data Agent,
+`cymbal-telemetry-monitoring-agent`, is scoped to the telemetry dataset so
+operators can interrogate the agent's own behaviour in natural language.
+
+| Property | Value |
+| :--- | :--- |
+| Resource | `projects/project-elevate-data-advance/locations/global/dataAgents/cymbal-telemetry-monitoring-agent` |
+| Sources | `agent_telemetry.events`, `v_llm_response`, `v_tool_completed`, `v_tool_error` |
+
+Its system instruction does real work rather than restating the schema. It
+directs the model to prefer the typed `v_*` views over the raw `events` table,
+to always apply a `timestamp` filter so partitions prune, to price Gemini 3.6
+Flash at \$0.30/M input and \$2.50/M output tokens and label the result an
+estimate, and to report average, p95 **and** max latency together - because tool
+latency in this system is heavily right-skewed and an average alone is
+misleading (see the 17.8 s average against the 68.6 s max in §7.5).
+
+All four monitoring questions were executed end to end:
+
+| Question | Generated SQL target | Result |
+| :--- | :--- | :--- |
+| Token consumption and cost per model | `v_llm_response` | `gemini-3.6-flash`, ~\$0.21 over the window |
+| Average and maximum latency per tool | `v_tool_completed` | `cymbal_analytics_tool` 18.21 s avg / 37.47 s p95 / 50.49 s max; `query_cashier_realtime_alerts` 14.49 s / 68.6 s / 68.6 s; `pos_troubleshooting_rag_tool` 6.99 s / 17.71 s / 18.39 s |
+| Failed tool calls and affected sessions | `v_tool_error` | Zero failures |
+| Top three tools by usage | `v_tool_completed` | `cymbal_analytics_tool` 53.8%, `pos_troubleshooting_rag_tool` 32.1%, `query_cashier_realtime_alerts` 14.1% |
+
+Every generated query targeted a typed view and carried the
+`timestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 7 DAY)` partition
+filter, confirming the instruction is being honoured rather than merely stated.
+
+---
+
 # Limitation and Next Step
 
 ### Observed Limitations
