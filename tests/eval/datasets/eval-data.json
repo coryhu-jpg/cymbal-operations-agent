@@ -1,82 +1,95 @@
 {
-  "eval_set_id": "cymbal_operations_agent_functional_eval_v1",
+  "eval_set_id": "cymbal_operations_agent_functional_eval_v2",
   "name": "Cymbal Operations Agent Functional & Multi-System Dataset",
-  "description": "Functional evaluation dataset covering single-dispatch, parallel-dispatch, and sequential multi-turn retail operations use cases.",
+  "description": "Functional evaluation dataset covering single-dispatch and parallel-dispatch retail operations use cases, in the agents-cli platform dataset shape. Every case carries an explicit golden reference response and an explicit expected tool trajectory grounded in a BRD requirement ID.",
   "eval_cases": [
     {
       "eval_case_id": "uc_1_1a_hardware_error_emv_freeze",
+      "brd_requirements": ["FR-5.1", "FR-5.2", "NFR-1.1"],
       "prompt": {
         "role": "user",
-        "parts": [
-          {
-            "text": "What is the immediate field recovery protocol when a cashier encounters an ERR-PAY-4001 EMV contactless payment freeze, and how do we ensure the customer is not double-charged?"
-          }
-        ]
+        "parts": [{"text": "What is the immediate field recovery protocol when a cashier encounters an ERR-PAY-4001 EMV contactless payment freeze, and how do we ensure the customer is not double-charged?"}]
       },
       "reference": {
-        "expected_tool": "pos_troubleshooting_rag_tool",
-        "expected_keywords": ["Toshiba TCx 810", "double-charged", "soft-reset", "gs://"]
+        "dispatch_pattern": "SINGLE_DISPATCH",
+        "expected_tool_calls": [{"tool_name": "pos_troubleshooting_rag_tool"}],
+        "response": {
+          "role": "model",
+          "parts": [{"text": "Certified recovery protocol for ERR-PAY-4001 on the Toshiba TCx 810 payment terminal: confirm the settlement state of the in-flight authorization before any reset, void any pending authorization from the POS journal, then perform the certified soft-reset of the EMV contactless reader, re-run the transaction only after a healthy reader handshake, and reconcile the receipt against the journal to confirm a single charge. Source: gs://cymbal-pos-manuals/toshiba_tcx_810_payment_terminal_runbook.pdf"}]
+        },
+        "must_contain": ["ERR-PAY-4001", "Toshiba TCx 810", "gs://"]
       }
     },
     {
       "eval_case_id": "uc_1_2a_stockout_risk_cover_hours",
+      "brd_requirements": ["FR-3.1", "FR-3.2"],
       "prompt": {
         "role": "user",
-        "parts": [
-          {
-            "text": "What is the estimated cover hours remaining for store inventory positions experiencing stockout risk of less than 20 hours, and what is their total on-hand inventory?"
-          }
-        ]
+        "parts": [{"text": "What is the estimated cover hours remaining for store inventory positions experiencing stockout risk of less than 20 hours, and what is their total on-hand inventory?"}]
       },
       "reference": {
-        "expected_tool": "cymbal_analytics_tool",
-        "expected_keywords": ["cover hours", "on-hand inventory", "stockout risk"]
+        "dispatch_pattern": "SINGLE_DISPATCH",
+        "expected_tool_calls": [{"tool_name": "cymbal_analytics_tool"}],
+        "response": {
+          "role": "model",
+          "parts": [{"text": "Querying gold_inventory_reconciliation_ledger for positions with Estimated Cover Hours below 20.0 returns the at-risk stockout positions with their remaining Estimated Cover Hours and the summed Total On-Hand Inventory, identified by store and product SKU so replenishment can be prioritized by shortest cover hours first."}]
+        },
+        "must_contain": ["Cover Hours", "On-Hand Inventory"]
       }
     },
     {
       "eval_case_id": "uc_1_3_realtime_cashier_metrics",
+      "brd_requirements": ["FR-2.1", "FR-2.2"],
       "prompt": {
         "role": "user",
-        "parts": [
-          {
-            "text": "Read live 1-hour rolling metrics and audit status flags for Cashier CASH_1190 at Store 48."
-          }
-        ]
+        "parts": [{"text": "Read live 1-hour rolling metrics and audit status flags for Cashier CASH_1190 at Store 48."}]
       },
       "reference": {
-        "expected_tool": "bigtable_mcp_toolset",
-        "expected_keywords": ["STORE_048#CASH_1190", "override_rate", "total_scan_count_1h"]
+        "dispatch_pattern": "SINGLE_DISPATCH",
+        "expected_tool_calls": [{"tool_name": "query_cashier_realtime_alerts"}],
+        "response": {
+          "role": "model",
+          "parts": [{"text": "Live operational cache readout for row key STORE_048#CASH_1190 from the Bigtable operations-db cache: the 1-hour rolling window reports the manual override count, total scan count, derived 1-hour override rate, and the last streaming update timestamp, together with the current audit status flag and whether a promo abuse alert is active."}]
+        },
+        "must_contain": ["STORE_048#CASH_1190", "override"]
       }
     },
     {
       "eval_case_id": "uc_2_1a_warranty_coverage",
+      "brd_requirements": ["FR-3.1", "FR-5.1"],
       "prompt": {
         "role": "user",
-        "parts": [
-          {
-            "text": "Check transaction details for TXN-20260312-0015811 and show the warranty coverage policy for the purchased item."
-          }
-        ]
+        "parts": [{"text": "Check transaction details for TXN-20260312-0015811 and show the warranty coverage policy for the purchased item."}]
       },
       "reference": {
-        "expected_tool": "cymbal_analytics_tool",
-        "expected_keywords": ["TXN-20260312-0015811", "warranty"]
+        "dispatch_pattern": "SINGLE_DISPATCH",
+        "expected_tool_calls": [{"tool_name": "cymbal_analytics_tool"}],
+        "response": {
+          "role": "model",
+          "parts": [{"text": "Transaction TXN-20260312-0015811 is retrieved from pos_transactions_gold with its store, cashier, payment method, and unnested line items, and the purchased product SKU is matched against the certified warranty policy records to return the covered warranty duration and the applicable policy terms."}]
+        },
+        "must_contain": ["TXN-20260312-0015811", "warranty"]
       }
     },
     {
       "eval_case_id": "uc_2_2_dual_cashier_baseline_parallel",
+      "brd_requirements": ["FR-2.1", "FR-3.2", "FR-1.1"],
       "prompt": {
         "role": "user",
-        "parts": [
-          {
-            "text": "What is Cashier CASH_1190's live 1-hour override rate right now, compared to their 7-day historical override baseline?"
-          }
-        ]
+        "parts": [{"text": "What is Cashier CASH_1190's live 1-hour override rate right now, compared to their 7-day historical override baseline?"}]
       },
       "reference": {
         "dispatch_pattern": "PARALLEL_DISPATCH",
-        "expected_tools": ["bigtable_mcp_toolset", "cymbal_analytics_tool"],
-        "expected_keywords": ["live 1-hour override rate", "7-day historical"]
+        "expected_tool_calls": [
+          {"tool_name": "query_cashier_realtime_alerts", "turn": 1},
+          {"tool_name": "cymbal_analytics_tool", "turn": 1}
+        ],
+        "same_turn_concurrency": true,
+        "response": {
+          "role": "model",
+          "parts": [{"text": "Comparative override analysis for Cashier CASH_1190 at Store 48: the live 1-hour override rate is read from the Bigtable operational cache at row key STORE_048#CASH_1190, the 7-day historical override baseline is computed from BigQuery history, and the response contrasts the two figures and flags whether the live rate materially exceeds the historical norm."}]
+        },
+        "must_contain": ["1-hour", "7-day", "baseline"]
       }
     }
   ]
