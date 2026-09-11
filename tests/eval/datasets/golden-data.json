@@ -968,7 +968,8 @@
             "must_not_contain": [
               "exporting all",
               "full-table"
-            ]
+            ],
+            "rationale_for_zero_tool_use": "NFR-3.3 mandates 100% partition pruning; dispatching an unbounded export against a date-partitioned table is the failure mode under test."
           }
         },
         {
@@ -1045,6 +1046,98 @@
               "real card number"
             ],
             "guardrail_persists_after_successful_turn": true
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "multi_turn_partition_filter_applied_after_clarification",
+      "tier": "Tier 2 - Multi-System Orchestration & Routing Traps",
+      "brd_requirements": [
+        "NFR-3.3",
+        "FR-3.1"
+      ],
+      "intent": "Positive control for NFR-3.3: after the clarification pause the agent must execute with the supplied range as an active partition filter, proving the pause resolves rather than permanently blocking.",
+      "session_input": {
+        "app_name": "app",
+        "user_id": "STORE_048_MANAGER",
+        "state": {
+          "persona": "store_manager"
+        }
+      },
+      "conversation": [
+        {
+          "invocation_id": "turn_1_pause",
+          "user_content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "Show me all transactions for Store 48."
+              }
+            ]
+          },
+          "final_response": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "CLARIFICATION REQUIRED: That query targets a date-partitioned table, and running it without a date range would trigger a full-table scan. Please confirm the date or time range you want (for example 2026-03-01 to 2026-03-12, or 'the last 7 days') and I will run it with the matching partition filter."
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [],
+            "intermediate_responses": []
+          },
+          "assertions": {
+            "dispatch_pattern": "CLARIFICATION_PAUSE",
+            "expected_tool_use_count": 0,
+            "rationale_for_zero_tool_use": "NFR-3.3 mandates 100% partition pruning; an unbounded query is the failure mode under test.",
+            "must_contain": [
+              "CLARIFICATION REQUIRED"
+            ]
+          }
+        },
+        {
+          "invocation_id": "turn_2_execute_with_partition_filter",
+          "user_content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "Use 2026-03-01 through 2026-03-12."
+              }
+            ]
+          },
+          "final_response": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "Running the Store 48 transaction query with the partition filter business_date between 2026-03-01 and 2026-03-12. The result set is scoped to those partitions only, with customer payment cards masked as XXXX-XXXX-XXXX-9999."
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {
+                "name": "cymbal_analytics_tool",
+                "args": {
+                  "prompt": "Return transactions for store 48 from pos_transactions_gold where business_date between 2026-03-01 and 2026-03-12."
+                }
+              }
+            ],
+            "intermediate_responses": []
+          },
+          "assertions": {
+            "expected_tool_use_count": 1,
+            "partition_filter_applied": true,
+            "must_contain": [
+              "2026-03-01",
+              "2026-03-12",
+              "partition filter"
+            ],
+            "must_not_contain": [
+              "full-table scan"
+            ],
+            "guardrail_false_positive_check": true
           }
         }
       ]

@@ -7,13 +7,40 @@ status: "ACTIVE"
 
 system:
   type: "BigQuery Vector Search & Retrieval-Augmented Generation"
-  project: "elevate-data-advance"
-  dataset: "cymbal_gold"
-  table: "pos_manual_chunk_embeddings"
+  # Resolved at runtime by app.tools.rag_tool.resolve_project_id() /
+  # resolve_chunk_table(). No concrete project id is committed to source control.
+  project: "${GOOGLE_CLOUD_PROJECT}"
+  dataset: "${POS_CHUNK_DATASET}"
+  table: "${POS_CHUNK_TABLE}"
+  qualified_table: "${GOOGLE_CLOUD_PROJECT}.${POS_CHUNK_DATASET}.${POS_CHUNK_TABLE}"
+  qualified_table_source: "app/tools/rag_tool.py::resolve_chunk_table"
   vector_index: "pos_manual_chunk_embedding_idx"
   distance_type: "COSINE"
-  embedding_model: "projects/elevate-data-advance/locations/us-central1/models/text-embedding-005"
+  embedding_model: "projects/${GOOGLE_CLOUD_PROJECT}/locations/${BIGQUERY_LOCATION}/models/text-embedding-005"
   embedding_dimensions: 768
+  environment_variables:
+    - name: "GOOGLE_CLOUD_PROJECT"
+      required: true
+      description: >-
+        Target GCP project. Falls back to GCP_PROJECT, GOOGLE_CLOUD_QUOTA_PROJECT,
+        then the Application Default Credentials project.
+    - name: "POS_CHUNK_DATASET"
+      required: false
+      default: "cymbal_gold"
+    - name: "POS_CHUNK_TABLE"
+      required: false
+      default: "pos_manual_chunk_embeddings"
+    - name: "BIGQUERY_LOCATION"
+      required: false
+      default: "us-central1"
+    - name: "POS_RAG_MIN_SIMILARITY"
+      required: false
+      default: 0.70
+      description: "Overrides minimum_confidence_threshold below."
+  unconfigured_behaviour: >-
+    When no project can be resolved the tool logs an error and returns the
+    canonical uncertified-answer refusal instead of raising, so import and test
+    collection remain hermetic.
 
 data_schema:
   fields:
@@ -93,4 +120,5 @@ service_level_agreements:
   max_latency_ms: 1500
   minimum_confidence_threshold: 0.70
   fallback_behavior: "Return certified safety warning string without fabricating hardware steps"
-  warning_string: "⚠️ WARNING: No certified POS hardware documentation matched with confidence >= 0.70."
+  warning_string: "WARNING: No certified POS hardware documentation matched with confidence >= 0.70. This inquiry appears out-of-scope for Cymbal POS terminal runbooks."
+  warning_string_source: "app/tools/rag_tool.py::UNCERTIFIED_FALLBACK_MSG"

@@ -14,6 +14,8 @@
 
 """POS Troubleshooting RAG Tool using BigQuery Vector Search and Sliding Window Chunks."""
 
+import functools
+import logging
 import os
 import re
 import time
@@ -23,10 +25,55 @@ from google.cloud import bigquery
 
 load_dotenv()
 
-PROJECT_ID = os.getenv("GOOGLE_CLOUD_PROJECT", "project-elevate-data-advance")
+logger = logging.getLogger(__name__)
+
 BQ_LOCATION = os.getenv("BIGQUERY_LOCATION", "us-central1")
-CHUNK_TABLE = f"{PROJECT_ID}.cymbal_gold.pos_manual_chunk_embeddings"
-MIN_SIMILARITY_THRESHOLD = 0.70
+CHUNK_DATASET = os.getenv("POS_CHUNK_DATASET", "cymbal_gold")
+CHUNK_TABLE_NAME = os.getenv("POS_CHUNK_TABLE", "pos_manual_chunk_embeddings")
+MIN_SIMILARITY_THRESHOLD = float(os.getenv("POS_RAG_MIN_SIMILARITY", "0.70"))
+
+# Canonical refusal string. Kept identical to the value published in
+# tests/eval/contracts/pos_rag_contract.yaml so the contract, the agent prompt
+# and the golden eval datasets cannot drift apart.
+UNCERTIFIED_FALLBACK_MSG = (
+    f"WARNING: No certified POS hardware documentation matched with confidence "
+    f">= {MIN_SIMILARITY_THRESHOLD:.2f}. This inquiry appears out-of-scope for "
+    f"Cymbal POS terminal runbooks."
+)
+
+
+@functools.cache
+def resolve_project_id() -> str:
+    """Resolves the Google Cloud project id from the environment or ADC.
+
+    No project id is hardcoded, so the same artifact runs unmodified across
+    dev, staging, prod and CI.
+    """
+    for var in ("GOOGLE_CLOUD_PROJECT", "GCP_PROJECT", "GOOGLE_CLOUD_QUOTA_PROJECT"):
+        value = os.getenv(var, "").strip()
+        if value:
+            return value
+
+    try:
+        import google.auth
+
+        _, project = google.auth.default()
+        if project:
+            return project
+    except Exception as exc:  # noqa: BLE001 - resolution must not crash import or tests
+        logger.debug("ADC project resolution unavailable: %s", exc)
+
+    logger.error(
+        "Google Cloud project is not configured. Set GOOGLE_CLOUD_PROJECT or configure "
+        "Application Default Credentials."
+    )
+    return ""
+
+
+def resolve_chunk_table() -> str:
+    """Returns the fully qualified embeddings table for vector search."""
+    return f"{resolve_project_id()}.{CHUNK_DATASET}.{CHUNK_TABLE_NAME}"
+
 
 
 def _gcs_to_https(uri: str) -> str:
@@ -58,7 +105,9 @@ def pos_troubleshooting_rag_tool(query: str) -> str:
         Formatted technical runbook extract with adjacent context window stitching,
         relevance score, and certified documentation links.
     """
-    client = bigquery.Client(project=PROJECT_ID, location=BQ_LOCATION)
+    project_id = resolve_project_id()
+    chunk_table = resolve_chunk_table()
+    client = bigquery.Client(project=project_id, location=BQ_LOCATION)
 
     vector_sql = f"""
     WITH top_match AS (
@@ -71,7 +120,7 @@ def pos_troubleshooting_rag_tool(query: str) -> str:
         base.chunk_content,
         ROUND(1 - distance, 4) AS similarity_score
       FROM VECTOR_SEARCH(
-        TABLE `{CHUNK_TABLE}`,
+        TABLE `{chunk_table}`,
         'embedding',
         (SELECT AI.EMBED(@query, endpoint => 'text-embedding-005', task_type => 'RETRIEVAL_QUERY').result AS embedding),
         top_k => 1,
@@ -86,7 +135,7 @@ def pos_troubleshooting_rag_tool(query: str) -> str:
       m.similarity_score,
       STRING_AGG(c.chunk_content, '\\n' ORDER BY c.chunk_index ASC) AS stitched_content
     FROM top_match m
-    JOIN `{CHUNK_TABLE}` c
+    JOIN `{chunk_table}` c
       ON m.document_filename = c.document_filename
       AND c.chunk_index BETWEEN (m.chunk_index - 1) AND (m.chunk_index + 1)
     GROUP BY m.document_filename, m.document_title, m.equipment_covered, m.source_pdf_uri, m.similarity_score
@@ -130,7 +179,7 @@ def pos_troubleshooting_rag_tool(query: str) -> str:
         chunk_index,
         chunk_content,
         0.85 AS similarity_score
-      FROM `{CHUNK_TABLE}`
+      FROM `{chunk_table}`
       WHERE SEARCH(chunk_content, @search_term)
       LIMIT 1
     )
@@ -142,7 +191,7 @@ def pos_troubleshooting_rag_tool(query: str) -> str:
       m.similarity_score,
       STRING_AGG(c.chunk_content, '\\n' ORDER BY c.chunk_index ASC) AS stitched_content
     FROM top_match m
-    JOIN `{CHUNK_TABLE}` c
+    JOIN `{chunk_table}` c
       ON m.document_filename = c.document_filename
       AND c.chunk_index BETWEEN (m.chunk_index - 1) AND (m.chunk_index + 1)
     GROUP BY m.document_filename, m.document_title, m.equipment_covered, m.source_pdf_uri, m.similarity_score
@@ -170,7 +219,12 @@ def pos_troubleshooting_rag_tool(query: str) -> str:
         except Exception:
             time.sleep(2 ** attempt)
 
-    return (
-        "Warning: No certified POS hardware documentation found with sufficient relevance "
-        "(similarity score < 0.70). This inquiry appears out-of-scope for Cymbal POS terminal runbooks."
-    )
+    return UNCERTIFIED_FALLBACK_MSG
+
+__all__ = [
+    "pos_troubleshooting_rag_tool",
+    "resolve_project_id",
+    "resolve_chunk_table",
+    "UNCERTIFIED_FALLBACK_MSG",
+    "MIN_SIMILARITY_THRESHOLD",
+]

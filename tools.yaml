@@ -1,8 +1,11 @@
 kind: source
 name: bigtable-source
 type: bigtable
-project: project-elevate-data-advance
-instance: operations-db
+# Resolved by the Toolbox server from the environment at start-up so the same
+# tools.yaml deploys unchanged to dev / staging / prod. Set BIGTABLE_PROJECT_ID
+# (falling back to GOOGLE_CLOUD_PROJECT) on the Cloud Run service.
+project: ${BIGTABLE_PROJECT_ID}
+instance: ${BIGTABLE_INSTANCE_ID}
 
 ---
 kind: tool

@@ -20,17 +20,57 @@ import time
 from typing import Any
 
 import google.auth
+from dotenv import load_dotenv
 from google.adk.tools.data_agent.config import DataAgentToolConfig
 from google.adk.tools.data_agent.data_agent_tool import ask_data_agent
 
+
+# Load .env before any endpoint or resource name is resolved from the environment.
+load_dotenv()
+
 logger = logging.getLogger(__name__)
 
-DEFAULT_DATA_AGENT_NAME = (
-    "projects/project-elevate-data-advance/locations/global/dataAgents/gda-f3ad9f8f-c345-4e25-92d7-3e8f2f29d9c5"
-)
+# No project id or agent id is hardcoded: the resource name is resolved from the
+# environment so the same image runs in dev, staging, prod and CI.
+DEFAULT_DATA_AGENT_LOCATION = "global"
+
 FALLBACK_UNREACHABLE_MSG = (
-    "Store operational data is temporarily unreachable. Please verify BigQuery connectivity or retry shortly."
+    "Regional Store data is currently unreachable. Please retry shortly."
 )
+UNCONFIGURED_AGENT_MSG = (
+    "Regional Store data is currently unreachable. The BigQuery Data Agent is not "
+    "configured for this environment: set DATA_AGENT_NAME, or set GOOGLE_CLOUD_PROJECT "
+    "together with DATA_AGENT_ID."
+)
+
+
+def resolve_data_agent_name() -> str | None:
+    """Resolves the published BigQuery Data Agent resource name from the environment.
+
+    Resolution order:
+      1. ``DATA_AGENT_NAME`` - the fully qualified ``projects/.../dataAgents/...`` name.
+      2. Composed from ``GOOGLE_CLOUD_PROJECT``, ``DATA_AGENT_LOCATION`` and
+         ``DATA_AGENT_ID``.
+
+    Returns:
+        The resource name, or ``None`` when the environment is not configured.
+    """
+    explicit = os.getenv("DATA_AGENT_NAME", "").strip()
+    if explicit:
+        return explicit
+
+    project = os.getenv("GOOGLE_CLOUD_PROJECT", "").strip()
+    agent_id = os.getenv("DATA_AGENT_ID", "").strip()
+    if project and agent_id:
+        location = os.getenv("DATA_AGENT_LOCATION", DEFAULT_DATA_AGENT_LOCATION).strip()
+        return f"projects/{project}/locations/{location}/dataAgents/{agent_id}"
+
+    logger.error(
+        "BigQuery Data Agent is not configured. Set DATA_AGENT_NAME, or set "
+        "GOOGLE_CLOUD_PROJECT together with DATA_AGENT_ID."
+    )
+    return None
+
 
 
 def _format_data_agent_result(res: dict[str, Any]) -> str:
@@ -90,9 +130,13 @@ def cymbal_analytics_tool(query: str) -> str:
     Returns:
         Analysis summary, retrieved data records, and executed GoogleSQL query.
     """
-    data_agent_name = os.getenv("DATA_AGENT_NAME", DEFAULT_DATA_AGENT_NAME)
+    data_agent_name = resolve_data_agent_name()
+    if not data_agent_name:
+        return UNCONFIGURED_AGENT_MSG
+
     creds, _ = google.auth.default()
     settings = DataAgentToolConfig()
+
 
     max_attempts = 3
     last_err = None

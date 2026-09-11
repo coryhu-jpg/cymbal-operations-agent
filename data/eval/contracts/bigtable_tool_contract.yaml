@@ -7,10 +7,35 @@ status: "ACTIVE"
 
 system:
   type: "Cloud Bigtable NoSQL via Cloud Run Model Context Protocol (MCP) Server"
-  service_url: "https://mcp-toolbox-bigtable-547486901530.us-central1.run.app"
+  # Resolved at runtime by app.tools.bigtable_tool.resolve_service_url().
+  # No static project number is committed to source control.
+  service_url: "https://${BIGTABLE_MCP_SERVICE_NAME}-${GOOGLE_CLOUD_PROJECT_NUMBER}.${BIGTABLE_MCP_REGION}.run.app"
+  service_url_source: "app/tools/bigtable_tool.py::resolve_service_url"
+  environment_variables:
+    - name: "BIGTABLE_MCP_SERVICE_URL"
+      required: false
+      description: "Fully qualified Cloud Run endpoint. Takes precedence when set."
+    - name: "GOOGLE_CLOUD_PROJECT_NUMBER"
+      required: true
+      description: "Numeric project number used to compose the Cloud Run hostname."
+    - name: "BIGTABLE_MCP_SERVICE_NAME"
+      required: false
+      default: "mcp-toolbox-bigtable"
+    - name: "BIGTABLE_MCP_REGION"
+      required: false
+      default: "us-central1"
+  unconfigured_behaviour: >-
+    When neither variable is present the toolset targets the unroutable
+    placeholder host `bigtable-mcp-endpoint-not-configured.invalid` so a
+    misconfiguration fails loudly at call time and never reaches another
+    tenant's project.
   instance_id: "operations-db"
   table_id: "cashier_realtime_alerts"
   auth_mechanism: "Google Cloud OIDC Bearer Token"
+  auth_resolution: >-
+    Lazy, first-request resolution. Application Default Credentials are tried
+    first via google.oauth2.id_token.fetch_id_token; a bounded-timeout `gcloud`
+    subprocess is only used as a fallback. No shell command runs at import time.
 
 data_schema:
   row_key_specification:

@@ -48,6 +48,21 @@ FEEDBACK_URL = BASE_URL + "/feedback"
 
 HEADERS = {"Content-Type": "application/json"}
 
+# This module boots a real uvicorn server and calls live Google Cloud backends.
+# It is opt-in so that `pytest` is hermetic and green out of the box in build,
+# lint and CI environments that have no credentials and no free port.
+pytestmark = [
+    pytest.mark.e2e,
+    pytest.mark.skipif(
+        os.getenv("RUN_E2E_TESTS", "").lower() not in ("1", "true", "yes"),
+        reason=(
+            "End-to-end server tests are opt-in. Set RUN_E2E_TESTS=1 with valid "
+            "Application Default Credentials to run them."
+        ),
+    ),
+]
+
+
 
 def log_output(pipe: Any, log_func: Any) -> None:
     """Log the output from the given pipe."""

@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import pytest
 from google.adk.agents.run_config import RunConfig, StreamingMode
 from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
@@ -20,7 +21,23 @@ from google.genai import types
 from app.agent import root_agent
 
 
+def _adc_available() -> bool:
+    """Reports whether Application Default Credentials can be resolved."""
+    try:
+        import google.auth
+
+        google.auth.default()
+    except Exception:  # noqa: BLE001 - any resolution failure means "not available"
+        return False
+    return True
+
+
+@pytest.mark.skipif(
+    not _adc_available(),
+    reason="Requires Application Default Credentials to reach the Gemini endpoint.",
+)
 def test_agent_stream() -> None:
+
     """
     Integration test for the agent stream functionality.
     Tests that the agent returns valid streaming responses.

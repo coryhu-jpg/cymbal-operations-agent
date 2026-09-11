@@ -8,11 +8,19 @@ authors = [
 
 dependencies = [
     "google-adk[gcp]>=2.0.0,<3.0.0",
+    # Declared explicitly: app/tools/bigtable_tool.py imports google.adk.tools.mcp_tool,
+    # which requires the mcp runtime. mcp>=2.0.0 removes mcp.shared.session and breaks
+    # McpToolset, so the upper bound is load-bearing.
+    "mcp>=1.29.0,<2.0.0",
     "a2a-sdk[http-server]~=0.3.22",
     "aiohttp>=3.13.4",
     "opentelemetry-instrumentation-google-genai>=0.1.0,<1.0.0",
     "gcsfs>=2024.11.0",
     "google-cloud-logging>=3.12.0,<4.0.0",
+    # Imported directly by app/tools/rag_tool.py and app/tools/analytics_tool.py.
+    "google-cloud-bigquery>=3.25.0,<4.0.0",
+    "google-auth>=2.35.0,<3.0.0",
+    "python-dotenv>=1.0.0,<2.0.0",
 ]
 requires-python = ">=3.11,<3.14"
 
@@ -22,7 +30,11 @@ dev = [
     "pytest>=9.0.2,<10.0.0",
     "pytest-asyncio>=1.0.0,<2.0.0",
     "nest-asyncio>=1.6.0,<2.0.0",
+    # Imported by tests/integration/test_server_e2e.py.
+    "requests>=2.32.0,<3.0.0",
+    "pyyaml>=6.0,<7.0",
 ]
+
 
 [project.optional-dependencies]
 eval = [
@@ -53,14 +65,15 @@ select = [
 ignore = ["E501", "C901", "B006"] # ignore line too long, too complex
 
 [tool.ruff.lint.isort]
-known-first-party = ["app", "frontend"]
+known-first-party = ["app"]
 
 [tool.ty]
 # ty is Astral's Rust-based type checker (same team as ruff/uv)
 # See: https://docs.astral.sh/ty/
 
 [tool.ty.environment]
-python-version = "3.10"
+# Must match requires-python (>=3.11).
+python-version = "3.11"
 
 [tool.ty.src]
 exclude = [".venv/**"]
@@ -89,8 +102,16 @@ build-backend = "hatchling.build"
 [tool.pytest.ini_options]
 pythonpath = "."
 asyncio_default_fixture_loop_scope = "session"
+# Default collection is hermetic: end-to-end tests that boot a live server or
+# require cloud credentials are opt-in via `-m e2e`.
+addopts = "-m 'not e2e'"
+markers = [
+    "e2e: end-to-end test that boots a live uvicorn server (requires RUN_E2E_TESTS=1)",
+]
 
 [tool.hatch.build.targets.wheel]
-packages = ["app","frontend"]
+# Only "app" exists in this repository; listing a non-existent package made
+# the hatchling wheel build fail.
+packages = ["app"]
 
 

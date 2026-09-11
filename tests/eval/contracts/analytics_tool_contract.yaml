@@ -7,7 +7,28 @@ status: "ACTIVE"
 
 system:
   type: "Google BigQuery Data Agent (Conversational Analytics)"
-  data_agent_resource: "projects/elevate-data-advance/locations/global/dataAgents/gda-f3ad9f8f-c345-4e25-92d7-3e8f2f29d9c5"
+  # Resolved at runtime by app.tools.analytics_tool.resolve_data_agent_name().
+  # No concrete project id / data agent id is committed to source control so the
+  # repository is portable across dev / staging / prod projects.
+  data_agent_resource: "projects/${GOOGLE_CLOUD_PROJECT}/locations/${DATA_AGENT_LOCATION}/dataAgents/${DATA_AGENT_ID}"
+  data_agent_resource_source: "app/tools/analytics_tool.py::resolve_data_agent_name"
+  environment_variables:
+    - name: "DATA_AGENT_NAME"
+      required: false
+      description: "Fully-qualified data agent resource. Takes precedence when set."
+    - name: "GOOGLE_CLOUD_PROJECT"
+      required: true
+      description: "Target GCP project id used to compose the data agent resource."
+    - name: "DATA_AGENT_LOCATION"
+      required: false
+      default: "global"
+    - name: "DATA_AGENT_ID"
+      required: true
+      description: "Published BigQuery Conversational Analytics data agent id."
+  unconfigured_behaviour: >-
+    When neither DATA_AGENT_NAME nor DATA_AGENT_ID is present the tool returns a
+    structured configuration error instead of raising, so import and test
+    collection remain hermetic.
   governance:
     authentication_mode: "OAuth Delegated End-User Credentials"
     cost_guardrail:
