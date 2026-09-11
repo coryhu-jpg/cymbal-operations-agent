@@ -776,6 +776,89 @@ Every generated query targeted a typed view and carried the
 `timestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 7 DAY)` partition
 filter, confirming the instruction is being honoured rather than merely stated.
 
+## 7.11 Operational Analytics Dashboard (`dashboard_v2.ipynb`)
+
+The upstream BigQuery Agent Analytics dashboard notebook
+([`dashboard_v2.ipynb`](https://github.com/GoogleCloudPlatform/BigQuery-Agent-Analytics-SDK/blob/main/examples/dashboard_v2.ipynb))
+was executed unmodified against our telemetry dataset. The notebook's
+configuration cell reads `GOOGLE_CLOUD_PROJECT` / `BQ_DATASET` / `BQ_TABLE` /
+`BQ_LOCATION` from the environment, so the committed copy at
+[`notebooks/dashboard_v2.ipynb`](../../notebooks/dashboard_v2.ipynb) is
+byte-identical to upstream in its **source**; only the cell outputs differ.
+That matters for a monitoring asset: it can be refreshed by re-running rather
+than re-editing, and it will not drift from upstream.
+
+All 39 code cells executed cleanly (`ok=39 errored=0`) over a window containing
+**948 events across 70 sessions**, comprising 374 LLM events (232 completed
+responses), 158 tool events across 3 distinct tools, and 416 multimodal content
+parts.
+
+### Panel readings
+
+| Panel | Metric | Reading |
+| :--- | :--- | :--- |
+| **1. Cost & Token** | Prompt / completion / total tokens | 601,873 / 37,877 / **713,814** |
+| | Estimated spend (`gemini-3.6-flash`) | **~\$0.28** |
+| **2. Usage Volume** | Sessions / traces / invocations | 70 / 70 / 70 |
+| | LLM calls / tool calls | 142 / 80 |
+| | Top-3 tool distribution | `cymbal_analytics_tool` 53.8%, `pos_troubleshooting_rag_tool` 32.1%, `query_cashier_realtime_alerts` 14.1% |
+| **3. Reliability** | Total errors / error rate | **0 / 0.00%** |
+| **4. Performance Latency** | Tool p50 / p95 | analytics 15.26 s / 37.47 s; RAG 2.94 s / 17.71 s; Bigtable 2.43 s / 68.60 s |
+| **5. TTFT** | LLM time-to-first-token p50 / p95 | **2.81 s / 21.46 s** |
+
+![Panel 1 - token KPI cards](monitoring/dashboard_panels/cell09-token-kpi-cards.png)
+
+![Panel 2 - usage volume KPI cards](monitoring/dashboard_panels/cell13-usage-volume-kpi-cards.png)
+
+![Panel 3 - reliability KPI cards](monitoring/dashboard_panels/cell16-error-kpi-cards.png)
+
+![Panel 4 - tool latency percentiles](monitoring/dashboard_panels/cell21-tool-latency-p50-p90-over-time.png)
+
+![Panel 5 - LLM TTFT percentiles](monitoring/dashboard_panels/cell22-ttft-p50-p90-p99-over-time.png)
+
+### Interpretation
+
+**The prompt/completion ratio is 15.9 : 1.** 84% of the token bill is input, and
+input is priced 8.3x cheaper than output, so the effective cost per interaction
+is dominated by *how much context we resend*, not by how much the agent says.
+The lever that actually moves cost here is context caching - `v_llm_response`
+exposes `context_cache_hit_rate` and `usage_cached_tokens` precisely for this,
+and both are currently at zero. This is the single largest cost optimisation
+available and it requires no change to agent behaviour.
+
+**The p50/p95 spread is the real reliability story.** Every panel that reports a
+percentile shows a heavy right tail: TTFT is 2.81 s at p50 but 21.46 s at p95,
+and `query_cashier_realtime_alerts` runs 2.43 s at p50 against 68.60 s at p95.
+For the Bigtable tool this tail is a Cloud Run cold start, not query cost - the
+p50 shows the warm path is sub-3 s. An average would have hidden this entirely
+(§7.10 records why the monitoring Data Agent is instructed to always report
+avg **and** p95 **and** max together). The operational conclusion is that the
+Bigtable MCP service needs `min-instances >= 1` before this agent faces
+frontline users, since a store manager triaging a live checkout incident will
+not wait 68 seconds.
+
+**The three reliability panels are empty, and that is a real result.** Total
+errors 0, tool errors 0, LLM errors 0 across 948 events - covering every local
+evaluation run, the deployed Agent Runtime smoke tests, and the Conversational
+Analytics probes. The graceful-fallback paths (`FALLBACK_UNREACHABLE_MSG`,
+`UNCERTIFIED_FALLBACK_MSG`) return normal tool results rather than raising, so
+they are correctly *not* counted as errors; a genuine transport failure would
+have surfaced in `v_tool_error`.
+
+**The HITL and truncation panels are also empty, but for a different reason.**
+This agent has no human-in-the-loop pause primitive - Protocol 7's clarification
+pause is implemented as a plain textual response, not as an ADK HITL event - so
+those panels can never populate for this workload. They are retained rather than
+deleted so the notebook stays upstream-identical, but they should be read as
+*not applicable* rather than *healthy*.
+
+**Caveat on the time-series panels.** The window is dominated by synthetic
+evaluation traffic (`eval-cli-user` accounts for 62 of 70 sessions), which
+arrives in dense bursts from the eval harness. The time-axis shapes therefore
+describe the harness's request pattern, not organic user demand. The aggregate
+KPIs - token totals, error rate, per-tool latency distributions - remain valid,
+because they are per-call measurements independent of arrival rate.
+
 ---
 
 # Limitation and Next Step
