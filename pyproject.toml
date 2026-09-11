@@ -9,11 +9,19 @@ authors = [
 dependencies = [
     # bigquery-analytics pulls pyarrow + the BigQuery Storage Write API client,
     # required by app/telemetry.py::BigQueryAgentAnalyticsPlugin.
-    "google-adk[gcp,bigquery-analytics]>=2.0.0,<3.0.0",
+    "google-adk[bigquery-analytics,gcp,otel-gcp]>=2.6.0,<3.0.0",
     # Declared explicitly: app/tools/bigtable_tool.py imports google.adk.tools.mcp_tool,
     # which requires the mcp runtime. mcp>=2.0.0 removes mcp.shared.session and breaks
     # McpToolset, so the upper bound is load-bearing.
     "mcp>=1.29.0,<2.0.0",
+    # Pinned to the 0.3 line on purpose. a2a-sdk 1.x removes a2a.server.apps
+    # (A2AFastAPIApplication) in favour of a routes-based API and moves the
+    # JSON-RPC wire types into a2a.compat.v0_3.types, which breaks
+    # app/app_utils/a2a.py, app/fast_api_app.py and the e2e server tests at
+    # import time. Nothing on the Agent Runtime deployment path needs 1.x, so
+    # the migration is tracked as follow-up work rather than bundled into the
+    # deployment change. `agents-cli scaffold enhance` will try to raise this
+    # bound again; re-pin it until app/app_utils/a2a.py has been ported.
     "a2a-sdk[http-server]~=0.3.22",
     "aiohttp>=3.13.4",
     "opentelemetry-instrumentation-google-genai>=0.1.0,<1.0.0",
@@ -23,6 +31,9 @@ dependencies = [
     "google-cloud-bigquery>=3.25.0,<4.0.0",
     "google-auth>=2.35.0,<3.0.0",
     "python-dotenv>=1.0.0,<2.0.0",
+    "google-cloud-aiplatform[agent-engines,evaluation]>=1.156.0,<2.0.0",
+    "opentelemetry-resourcedetector-gcp<=1.12.0a0",
+    "protobuf>=6.31.1,<7.0.0",
 ]
 requires-python = ">=3.11,<3.14"
 
