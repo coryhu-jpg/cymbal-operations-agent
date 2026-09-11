@@ -26,6 +26,7 @@ from google.cloud import logging as google_cloud_logging
 
 from app.app_utils import services
 from app.app_utils.a2a import attach_a2a_routes
+from app.app_utils.reasoning_engine_adapter import attach_reasoning_engine_routes
 from app.app_utils.telemetry import setup_telemetry
 from app.app_utils.typing import Feedback
 
@@ -75,6 +76,15 @@ app: FastAPI = get_fast_api_app(
 )
 app.title = "cymbal-operations-agent"
 app.description = "API for interacting with the Agent cymbal-operations-agent"
+
+# Vertex AI Agent Runtime invokes the agent over /api/stream_reasoning_engine and
+# /api/reasoning_engine rather than the ADK REST surface. Without these routes a
+# deployment starts cleanly and then fails every query with
+# "404 Reasoning Engine Execution failed". Registration is cheap - the backing
+# AdkApp is constructed lazily on the first request - so the routes are attached
+# unconditionally, which also keeps the local server's surface identical to the
+# deployed one.
+attach_reasoning_engine_routes(app)
 
 
 @app.post("/feedback")
