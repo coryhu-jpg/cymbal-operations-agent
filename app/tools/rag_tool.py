@@ -91,6 +91,41 @@ def _extract_error_codes(query: str) -> str | None:
     return None
 
 
+# Restated at the tool boundary rather than only in the agent instruction: the
+# model reliably honours fidelity rules that sit immediately next to the content
+# they govern, whereas the same rules buried in a long system prompt were
+# repeatedly ignored (observed as grounding_v1 = 0.0 on runbook answers).
+_FIDELITY_DIRECTIVE = """
+
+---
+#### MANDATORY RESPONSE CONSTRUCTION RULES (read before answering)
+The steps above are certified manufacturer text. When you relay them to the user:
+1. Copy each step VERBATIM. Keep the manual's own verbs and abbreviations ("3s", not "3 seconds"; "Open", not "Navigate to").
+2. Do NOT prepend an invented label or title to a step. Never write "2. **Reboot Payment Module:** Hold Yellow + # ...". Write "2. Hold Yellow + # ...".
+3. Do NOT add actions, objects, qualifiers, or timing words that are absent above (do not add "tap", "insert", "immediately", "right away").
+4. Use the manual's name for the fault condition. If it is called a "Timeout", call it a Timeout - even if the user called it a freeze, hang, or crash.
+5. For status-code branches, state ONLY the condition and the prescribed action. Do NOT explain what the status means (no "the transaction went through successfully", no "the charge was aborted").
+6. Reproduce the document title and link exactly as given above.
+7. If the user asked something these steps do not cover, say the certified documentation does not address it. Do NOT fill the gap from general knowledge.
+"""
+
+
+def _format_runbook(row, similarity: float, *, fallback: bool) -> str:
+    """Render a retrieved runbook chunk plus the verbatim-reproduction directive."""
+    doc_link = _gcs_to_https(row.source_pdf_uri)
+    title_suffix = " (Fallback Exact Search)" if fallback else ""
+    score_suffix = " (Keyword Match)" if fallback else ""
+    return (
+        f"### Certified POS Hardware Runbook: {row.document_title}{title_suffix}\n"
+        f"- **Equipment Covered**: {row.equipment_covered}\n"
+        f"- **Relevance Score**: {similarity:.4f}{score_suffix}\n"
+        f"- **Certified Manual Link**: [{row.document_filename}]({doc_link})\n\n"
+        f"#### Step-by-Step Field Recovery & Technical Guidance:\n"
+        f"{row.stitched_content}"
+        f"{_FIDELITY_DIRECTIVE}"
+    )
+
+
 def pos_troubleshooting_rag_tool(query: str) -> str:
     """Performs vector similarity search and full-text runbook retrieval over POS terminal technical manuals and hardware documentation.
 
@@ -152,15 +187,7 @@ def pos_troubleshooting_rag_tool(query: str) -> str:
                 row = results[0]
                 similarity = float(row.similarity_score)
                 if similarity >= MIN_SIMILARITY_THRESHOLD:
-                    doc_link = _gcs_to_https(row.source_pdf_uri)
-                    return (
-                        f"### Certified POS Hardware Runbook: {row.document_title}\n"
-                        f"- **Equipment Covered**: {row.equipment_covered}\n"
-                        f"- **Relevance Score**: {similarity:.4f}\n"
-                        f"- **Certified Manual Link**: [{row.document_filename}]({doc_link})\n\n"
-                        f"#### Step-by-Step Field Recovery & Technical Guidance:\n"
-                        f"{row.stitched_content}"
-                    )
+                    return _format_runbook(row, similarity, fallback=False)
             break
         except Exception:
             time.sleep(2 ** attempt)
@@ -206,15 +233,7 @@ def pos_troubleshooting_rag_tool(query: str) -> str:
             results = list(client.query(search_sql, job_config=job_config, location=BQ_LOCATION).result())
             if results:
                 row = results[0]
-                doc_link = _gcs_to_https(row.source_pdf_uri)
-                return (
-                    f"### Certified POS Hardware Runbook: {row.document_title} (Fallback Exact Search)\n"
-                    f"- **Equipment Covered**: {row.equipment_covered}\n"
-                    f"- **Relevance Score**: {float(row.similarity_score):.4f} (Keyword Match)\n"
-                    f"- **Certified Manual Link**: [{row.document_filename}]({doc_link})\n\n"
-                    f"#### Step-by-Step Field Recovery & Technical Guidance:\n"
-                    f"{row.stitched_content}"
-                )
+                return _format_runbook(row, float(row.similarity_score), fallback=True)
             break
         except Exception:
             time.sleep(2 ** attempt)

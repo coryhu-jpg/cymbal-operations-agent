@@ -208,3 +208,10 @@ tools/a2a-inspector/
 *-key.json
 credentials*.json
 .ruff_cache/
+
+# Local scratch scripts (not part of the deliverable)
+scratch/
+
+# agents-cli eval artifacts: traces and grade results run to ~10 MB per session.
+# The distilled, committable evidence lives in tests/eval/results/.
+artifacts/

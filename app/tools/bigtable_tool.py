@@ -22,6 +22,7 @@ Portability contract:
     resolved from the environment, optionally composed from the project number.
 """
 
+import inspect
 import logging
 import os
 import subprocess
@@ -109,6 +110,35 @@ def _fetch_token_via_gcloud() -> str | None:
         return None
 
 
+def _adc_is_service_identity() -> bool:
+    """Reports whether ADC resolves to a service identity rather than a human.
+
+    This decides which identity-token source to try first, and it matters:
+
+      * **Deployed** (Agent Runtime, Cloud Run, GKE, GCE) ADC is a service
+        account or the metadata server, so ``fetch_id_token`` mints a token for
+        exactly the principal that was granted ``roles/run.invoker``.
+      * **Developer workstation** ADC is an ``authorized_user`` refresh token,
+        which cannot mint identity tokens at all. ``fetch_id_token`` silently
+        falls back to the **GCE metadata server** — on a Cloudtop that is the
+        shared VM service account (``insecure-cloudtop-shared-user@...``), a
+        completely different principal from the developer's gcloud account. The
+        resulting token has the right ``aud`` and is perfectly valid, so the
+        request is authenticated and then rejected with **403** rather than 401,
+        which makes the failure look like a service problem instead of an
+        identity mix-up. Preferring gcloud for human credentials avoids this.
+    """
+    try:
+        import google.auth
+        from google.oauth2 import credentials as user_credentials
+
+        creds, _ = google.auth.default()
+    except Exception as exc:  # noqa: BLE001 - unresolvable ADC is not a service identity
+        logger.debug("ADC credential type unavailable: %s", exc)
+        return False
+    return not isinstance(creds, user_credentials.Credentials)
+
+
 def get_oidc_auth_headers(readonly_context: Any | None = None) -> dict[str, str]:
     """Returns cached OIDC auth headers for the Cloud Run MCP service.
 
@@ -122,7 +152,12 @@ def get_oidc_auth_headers(readonly_context: Any | None = None) -> dict[str, str]
         return {"Authorization": f"Bearer {cached}"}
 
     audience = resolve_service_url()
-    token = _fetch_token_via_adc(audience) or _fetch_token_via_gcloud()
+    if _adc_is_service_identity():
+        token = _fetch_token_via_adc(audience) or _fetch_token_via_gcloud()
+    else:
+        # Human ADC: the developer's gcloud identity is the one that holds
+        # run.invoker, not whatever the metadata server would hand back.
+        token = _fetch_token_via_gcloud() or _fetch_token_via_adc(audience)
 
     if token:
         _token_cache["token"] = token
@@ -142,7 +177,43 @@ def get_oidc_auth_headers(readonly_context: Any | None = None) -> dict[str, str]
     return {}
 
 
-bigtable_mcp_toolset = McpToolset(
+class _AlwaysAuthenticatedMcpToolset(McpToolset):
+    """``McpToolset`` that authenticates even without a ``ReadonlyContext``.
+
+    Upstream ADK only consults ``header_provider`` when a ``ReadonlyContext`` is
+    present (see ``McpToolset._build_headers``). That assumes every call happens
+    inside a conversation, which is not true:
+
+      * the ADK API server's ``/apps/{app}/app-info`` endpoint enumerates the
+        agent's tools with no context, and ``agents-cli eval`` calls it to
+        discover the agent graph;
+      * ``McpToolset.get_tools()`` is likewise callable without a context.
+
+    Cloud Run IAM applies to *every* request, so an unauthenticated listing call
+    returns 403, the endpoint turns it into a 500, and the evaluation harness
+    logs `traces will omit agent_data.agents -- grading will degrade`. Supplying
+    the credential regardless of context removes that whole failure class.
+    """
+
+    async def _build_headers(
+        self, readonly_context: Any | None = None
+    ) -> dict[str, str]:
+        headers = await super()._build_headers(readonly_context)
+        if "Authorization" in headers or self._header_provider is None:
+            return headers
+
+        provider_headers = self._header_provider(readonly_context)
+        if inspect.isawaitable(provider_headers):
+            provider_headers = await provider_headers
+        if provider_headers:
+            # Never let the fallback clobber an exchanged credential.
+            merged = dict(provider_headers)
+            merged.update(headers)
+            return merged
+        return headers
+
+
+bigtable_mcp_toolset = _AlwaysAuthenticatedMcpToolset(
     connection_params=StreamableHTTPConnectionParams(
         url=f"{resolve_service_url()}/mcp",
         timeout=30.0,

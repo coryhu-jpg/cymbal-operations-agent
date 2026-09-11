@@ -1,0 +1,494 @@
+{
+  "description": "Lab 04 Part 2.1 quality gate: agents-cli eval over the 10-case basic-dataset, scored with tool_use_quality and grounding. Scores are reported by the Vertex eval service on a 0-1 scale; the lab gate of 4.0/5.0 corresponds to 0.80.",
+  "dataset": "tests/eval/datasets/basic-dataset.runnable.json",
+  "metrics": [
+    "tool_use_quality_v1",
+    "grounding_v1"
+  ],
+  "quality_gate_5_point": 4.0,
+  "quality_gate_normalised": 0.8,
+  "inference_command": "agents-cli eval generate --dataset tests/eval/datasets/basic-dataset.runnable.json --concurrency 2 -o artifacts/traces/",
+  "grading_command": "agents-cli eval grade --traces <traces.json> --metrics tool_use_quality,grounding --region us-central1",
+  "runs": [
+    {
+      "run": "run-1-baseline",
+      "change_under_test": "Baseline after fixing eval concurrency (10/10 cases complete).",
+      "results_file": "results_20260911_040038.json",
+      "traces_file": "traces_20260911_035420.json",
+      "aggregates": {
+        "tool_use_quality_v1": {
+          "mean_score_0_to_1": 0.9167,
+          "mean_score_5_point": 4.58,
+          "meets_quality_gate": true,
+          "num_cases_total": 10,
+          "num_cases_valid": 9,
+          "num_cases_error": 1,
+          "pass_rate": 0.8888888888888888,
+          "stdev_score": 0.25
+        },
+        "grounding_v1": {
+          "mean_score_0_to_1": 0.8,
+          "mean_score_5_point": 4.0,
+          "meets_quality_gate": true,
+          "num_cases_total": 10,
+          "num_cases_valid": 10,
+          "num_cases_error": 0,
+          "pass_rate": 0.8,
+          "stdev_score": 0.4216370213557839
+        }
+      },
+      "cases": [
+        {
+          "eval_case_id": "evalset_turn_1",
+          "tool_use_quality_v1": 1.0,
+          "grounding_v1": 0.0
+        },
+        {
+          "eval_case_id": "evalset_turn_2",
+          "tool_use_quality_v1": 1.0,
+          "grounding_v1": 0.0
+        },
+        {
+          "eval_case_id": "evalset_turn_3",
+          "tool_use_quality_v1": 1.0,
+          "grounding_v1": 1.0
+        },
+        {
+          "eval_case_id": "evalset_turn_4",
+          "tool_use_quality_v1": 0.25,
+          "grounding_v1": 1.0
+        },
+        {
+          "eval_case_id": "evalset_turn_5",
+          "tool_use_quality_v1": 1.0,
+          "grounding_v1": 1.0
+        },
+        {
+          "eval_case_id": "evalset_turn_6",
+          "tool_use_quality_v1": 1.0,
+          "grounding_v1": 1.0
+        },
+        {
+          "eval_case_id": "evalset_turn_7",
+          "tool_use_quality_v1": 1.0,
+          "grounding_v1": 1.0
+        },
+        {
+          "eval_case_id": "evalset_turn_8",
+          "tool_use_quality_v1": "not_applicable",
+          "grounding_v1": 1.0
+        },
+        {
+          "eval_case_id": "evalset_turn_9",
+          "tool_use_quality_v1": 1.0,
+          "grounding_v1": 1.0
+        },
+        {
+          "eval_case_id": "evalset_turn_10",
+          "tool_use_quality_v1": 1.0,
+          "grounding_v1": 1.0
+        }
+      ]
+    },
+    {
+      "run": "run-2-protocol7-and-rag-fidelity",
+      "change_under_test": "Scoped Protocol 7 to event tables; added Protocol 3 source-fidelity rules.",
+      "results_file": "results_20260911_040931.json",
+      "traces_file": "traces_20260911_040415.json",
+      "aggregates": {
+        "tool_use_quality_v1": {
+          "mean_score_0_to_1": 1.0,
+          "mean_score_5_point": 5.0,
+          "meets_quality_gate": true,
+          "num_cases_total": 10,
+          "num_cases_valid": 9,
+          "num_cases_error": 1,
+          "pass_rate": 1.0,
+          "stdev_score": 0.0
+        },
+        "grounding_v1": {
+          "mean_score_0_to_1": 0.9,
+          "mean_score_5_point": 4.5,
+          "meets_quality_gate": true,
+          "num_cases_total": 10,
+          "num_cases_valid": 10,
+          "num_cases_error": 0,
+          "pass_rate": 0.9,
+          "stdev_score": 0.31622776601683794
+        }
+      },
+      "cases": [
+        {
+          "eval_case_id": "evalset_turn_1",
+          "tool_use_quality_v1": 1.0,
+          "grounding_v1": 0.0
+        },
+        {
+          "eval_case_id": "evalset_turn_2",
+          "tool_use_quality_v1": 1.0,
+          "grounding_v1": 1.0
+        },
+        {
+          "eval_case_id": "evalset_turn_3",
+          "tool_use_quality_v1": 1.0,
+          "grounding_v1": 1.0
+        },
+        {
+          "eval_case_id": "evalset_turn_4",
+          "tool_use_quality_v1": 1.0,
+          "grounding_v1": 1.0
+        },
+        {
+          "eval_case_id": "evalset_turn_5",
+          "tool_use_quality_v1": 1.0,
+          "grounding_v1": 1.0
+        },
+        {
+          "eval_case_id": "evalset_turn_6",
+          "tool_use_quality_v1": 1.0,
+          "grounding_v1": 1.0
+        },
+        {
+          "eval_case_id": "evalset_turn_7",
+          "tool_use_quality_v1": 1.0,
+          "grounding_v1": 1.0
+        },
+        {
+          "eval_case_id": "evalset_turn_8",
+          "tool_use_quality_v1": "not_applicable",
+          "grounding_v1": 1.0
+        },
+        {
+          "eval_case_id": "evalset_turn_9",
+          "tool_use_quality_v1": 1.0,
+          "grounding_v1": 1.0
+        },
+        {
+          "eval_case_id": "evalset_turn_10",
+          "tool_use_quality_v1": 1.0,
+          "grounding_v1": 1.0
+        }
+      ]
+    },
+    {
+      "run": "run-3-status-gloss-rule",
+      "change_under_test": "Added rule forbidding interpretive glosses on status-code branches.",
+      "results_file": "results_20260911_041523.json",
+      "traces_file": "traces_20260911_041033.json",
+      "aggregates": {
+        "tool_use_quality_v1": {
+          "mean_score_0_to_1": 0.9815,
+          "mean_score_5_point": 4.91,
+          "meets_quality_gate": true,
+          "num_cases_total": 10,
+          "num_cases_valid": 9,
+          "num_cases_error": 1,
+          "pass_rate": 0.8888888888888888,
+          "stdev_score": 0.055555566666666646
+        },
+        "grounding_v1": {
+          "mean_score_0_to_1": 0.7,
+          "mean_score_5_point": 3.5,
+          "meets_quality_gate": false,
+          "num_cases_total": 10,
+          "num_cases_valid": 10,
+          "num_cases_error": 0,
+          "pass_rate": 0.7,
+          "stdev_score": 0.48304589153964794
+        }
+      },
+      "cases": [
+        {
+          "eval_case_id": "evalset_turn_1",
+          "tool_use_quality_v1": 1.0,
+          "grounding_v1": 0.0
+        },
+        {
+          "eval_case_id": "evalset_turn_2",
+          "tool_use_quality_v1": 1.0,
+          "grounding_v1": 1.0
+        },
+        {
+          "eval_case_id": "evalset_turn_3",
+          "tool_use_quality_v1": 1.0,
+          "grounding_v1": 1.0
+        },
+        {
+          "eval_case_id": "evalset_turn_4",
+          "tool_use_quality_v1": 1.0,
+          "grounding_v1": 0.0
+        },
+        {
+          "eval_case_id": "evalset_turn_5",
+          "tool_use_quality_v1": 1.0,
+          "grounding_v1": 1.0
+        },
+        {
+          "eval_case_id": "evalset_turn_6",
+          "tool_use_quality_v1": 1.0,
+          "grounding_v1": 1.0
+        },
+        {
+          "eval_case_id": "evalset_turn_7",
+          "tool_use_quality_v1": 0.8333,
+          "grounding_v1": 0.0
+        },
+        {
+          "eval_case_id": "evalset_turn_8",
+          "tool_use_quality_v1": "not_applicable",
+          "grounding_v1": 1.0
+        },
+        {
+          "eval_case_id": "evalset_turn_9",
+          "tool_use_quality_v1": 1.0,
+          "grounding_v1": 1.0
+        },
+        {
+          "eval_case_id": "evalset_turn_10",
+          "tool_use_quality_v1": 1.0,
+          "grounding_v1": 1.0
+        }
+      ]
+    },
+    {
+      "run": "run-4-verbatim-and-prose",
+      "change_under_test": "Verbatim step reproduction; no invented step labels or link text; prose required alongside tables.",
+      "results_file": "results_20260911_042451.json",
+      "traces_file": "traces_20260911_041656.json",
+      "aggregates": {
+        "tool_use_quality_v1": {
+          "mean_score_0_to_1": 0.9444,
+          "mean_score_5_point": 4.72,
+          "meets_quality_gate": true,
+          "num_cases_total": 10,
+          "num_cases_valid": 9,
+          "num_cases_error": 1,
+          "pass_rate": 0.7777777777777778,
+          "stdev_score": 0.11785112430520245
+        },
+        "grounding_v1": {
+          "mean_score_0_to_1": 0.8,
+          "mean_score_5_point": 4.0,
+          "meets_quality_gate": true,
+          "num_cases_total": 10,
+          "num_cases_valid": 10,
+          "num_cases_error": 0,
+          "pass_rate": 0.8,
+          "stdev_score": 0.4216370213557839
+        }
+      },
+      "cases": [
+        {
+          "eval_case_id": "evalset_turn_1",
+          "tool_use_quality_v1": 1.0,
+          "grounding_v1": 0.0
+        },
+        {
+          "eval_case_id": "evalset_turn_2",
+          "tool_use_quality_v1": 1.0,
+          "grounding_v1": 1.0
+        },
+        {
+          "eval_case_id": "evalset_turn_3",
+          "tool_use_quality_v1": 1.0,
+          "grounding_v1": 1.0
+        },
+        {
+          "eval_case_id": "evalset_turn_4",
+          "tool_use_quality_v1": 1.0,
+          "grounding_v1": 1.0
+        },
+        {
+          "eval_case_id": "evalset_turn_5",
+          "tool_use_quality_v1": 1.0,
+          "grounding_v1": 1.0
+        },
+        {
+          "eval_case_id": "evalset_turn_6",
+          "tool_use_quality_v1": 1.0,
+          "grounding_v1": 1.0
+        },
+        {
+          "eval_case_id": "evalset_turn_7",
+          "tool_use_quality_v1": 0.6667,
+          "grounding_v1": 1.0
+        },
+        {
+          "eval_case_id": "evalset_turn_8",
+          "tool_use_quality_v1": "not_applicable",
+          "grounding_v1": 1.0
+        },
+        {
+          "eval_case_id": "evalset_turn_9",
+          "tool_use_quality_v1": 1.0,
+          "grounding_v1": 0.0
+        },
+        {
+          "eval_case_id": "evalset_turn_10",
+          "tool_use_quality_v1": 0.8333,
+          "grounding_v1": 1.0
+        }
+      ]
+    },
+    {
+      "run": "run-5-tool-boundary-fidelity",
+      "change_under_test": "Moved fidelity directive into the RAG tool payload; added Protocol 4 dependent-query chaining.",
+      "results_file": "results_20260911_043355.json",
+      "traces_file": "traces_20260911_042722.json",
+      "aggregates": {
+        "tool_use_quality_v1": {
+          "mean_score_0_to_1": 0.9398,
+          "mean_score_5_point": 4.7,
+          "meets_quality_gate": true,
+          "num_cases_total": 10,
+          "num_cases_valid": 9,
+          "num_cases_error": 1,
+          "pass_rate": 0.6666666666666666,
+          "stdev_score": 0.095722565413392
+        },
+        "grounding_v1": {
+          "mean_score_0_to_1": 0.8,
+          "mean_score_5_point": 4.0,
+          "meets_quality_gate": true,
+          "num_cases_total": 10,
+          "num_cases_valid": 10,
+          "num_cases_error": 0,
+          "pass_rate": 0.8,
+          "stdev_score": 0.4216370213557839
+        }
+      },
+      "cases": [
+        {
+          "eval_case_id": "evalset_turn_1",
+          "tool_use_quality_v1": 0.75,
+          "grounding_v1": 0.0
+        },
+        {
+          "eval_case_id": "evalset_turn_2",
+          "tool_use_quality_v1": 1.0,
+          "grounding_v1": 1.0
+        },
+        {
+          "eval_case_id": "evalset_turn_3",
+          "tool_use_quality_v1": 1.0,
+          "grounding_v1": 1.0
+        },
+        {
+          "eval_case_id": "evalset_turn_4",
+          "tool_use_quality_v1": 1.0,
+          "grounding_v1": 1.0
+        },
+        {
+          "eval_case_id": "evalset_turn_5",
+          "tool_use_quality_v1": 1.0,
+          "grounding_v1": 1.0
+        },
+        {
+          "eval_case_id": "evalset_turn_6",
+          "tool_use_quality_v1": 1.0,
+          "grounding_v1": 1.0
+        },
+        {
+          "eval_case_id": "evalset_turn_7",
+          "tool_use_quality_v1": 0.8333,
+          "grounding_v1": 0.0
+        },
+        {
+          "eval_case_id": "evalset_turn_8",
+          "tool_use_quality_v1": "not_applicable",
+          "grounding_v1": 1.0
+        },
+        {
+          "eval_case_id": "evalset_turn_9",
+          "tool_use_quality_v1": 0.875,
+          "grounding_v1": 1.0
+        },
+        {
+          "eval_case_id": "evalset_turn_10",
+          "tool_use_quality_v1": 1.0,
+          "grounding_v1": 1.0
+        }
+      ]
+    },
+    {
+      "run": "run-5-regrade-same-traces",
+      "change_under_test": "IDENTICAL traces to run-5, re-graded only. Isolates judge non-determinism from agent behaviour.",
+      "results_file": "results_20260911_043534.json",
+      "traces_file": "traces_20260911_042722.json",
+      "aggregates": {
+        "tool_use_quality_v1": {
+          "mean_score_0_to_1": 0.9407,
+          "mean_score_5_point": 4.7,
+          "meets_quality_gate": true,
+          "num_cases_total": 10,
+          "num_cases_valid": 9,
+          "num_cases_error": 1,
+          "pass_rate": 0.6666666666666666,
+          "stdev_score": 0.08940821523001953
+        },
+        "grounding_v1": {
+          "mean_score_0_to_1": 1.0,
+          "mean_score_5_point": 5.0,
+          "meets_quality_gate": true,
+          "num_cases_total": 10,
+          "num_cases_valid": 10,
+          "num_cases_error": 0,
+          "pass_rate": 1.0,
+          "stdev_score": 0.0
+        }
+      },
+      "cases": [
+        {
+          "eval_case_id": "evalset_turn_1",
+          "tool_use_quality_v1": 0.8,
+          "grounding_v1": 1.0
+        },
+        {
+          "eval_case_id": "evalset_turn_2",
+          "tool_use_quality_v1": 1.0,
+          "grounding_v1": 1.0
+        },
+        {
+          "eval_case_id": "evalset_turn_3",
+          "tool_use_quality_v1": 1.0,
+          "grounding_v1": 1.0
+        },
+        {
+          "eval_case_id": "evalset_turn_4",
+          "tool_use_quality_v1": 1.0,
+          "grounding_v1": 1.0
+        },
+        {
+          "eval_case_id": "evalset_turn_5",
+          "tool_use_quality_v1": 1.0,
+          "grounding_v1": 1.0
+        },
+        {
+          "eval_case_id": "evalset_turn_6",
+          "tool_use_quality_v1": 1.0,
+          "grounding_v1": 1.0
+        },
+        {
+          "eval_case_id": "evalset_turn_7",
+          "tool_use_quality_v1": 0.8333,
+          "grounding_v1": 1.0
+        },
+        {
+          "eval_case_id": "evalset_turn_8",
+          "tool_use_quality_v1": "not_applicable",
+          "grounding_v1": 1.0
+        },
+        {
+          "eval_case_id": "evalset_turn_9",
+          "tool_use_quality_v1": 1.0,
+          "grounding_v1": 1.0
+        },
+        {
+          "eval_case_id": "evalset_turn_10",
+          "tool_use_quality_v1": 0.8333,
+          "grounding_v1": 1.0
+        }
+      ]
+    }
+  ]
+}

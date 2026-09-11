@@ -134,9 +134,33 @@ def test_oidc_headers_use_bearer_scheme(monkeypatch: pytest.MonkeyPatch) -> None
 
     monkeypatch.setitem(bt._token_cache, "token", None)
     monkeypatch.setitem(bt._token_cache, "expiry", 0.0)
+    # Pin both sources: get_oidc_auth_headers picks an order based on whether
+    # ADC is a service identity, and this assertion must not depend on that.
     monkeypatch.setattr(bt, "_fetch_token_via_adc", lambda audience: "fake-token")
+    monkeypatch.setattr(bt, "_fetch_token_via_gcloud", lambda: "fake-token")
 
     assert bt.get_oidc_auth_headers() == {"Authorization": "Bearer fake-token"}
+
+
+def test_service_identity_probe_rejects_end_user_credentials(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """End-user ADC must not be treated as a service identity.
+
+    On a developer workstation ``fetch_id_token`` silently falls through to the
+    GCE metadata server, minting a token for the VM's service account instead
+    of the developer. That produces a confusing 403 against Cloud Run, so the
+    gcloud identity has to win for human credentials.
+    """
+    import google.auth
+    from google.oauth2 import credentials as user_credentials
+
+    import app.tools.bigtable_tool as bt
+
+    fake_user_creds = user_credentials.Credentials(token="x")
+    monkeypatch.setattr(google.auth, "default", lambda *a, **k: (fake_user_creds, "p"))
+
+    assert bt._adc_is_service_identity() is False
 
 
 # --------------------------------------------------------------------------

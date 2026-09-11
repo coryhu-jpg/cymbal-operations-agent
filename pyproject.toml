@@ -7,7 +7,9 @@ authors = [
 ]
 
 dependencies = [
-    "google-adk[gcp]>=2.0.0,<3.0.0",
+    # bigquery-analytics pulls pyarrow + the BigQuery Storage Write API client,
+    # required by app/telemetry.py::BigQueryAgentAnalyticsPlugin.
+    "google-adk[gcp,bigquery-analytics]>=2.0.0,<3.0.0",
     # Declared explicitly: app/tools/bigtable_tool.py imports google.adk.tools.mcp_tool,
     # which requires the mcp runtime. mcp>=2.0.0 removes mcp.shared.session and breaks
     # McpToolset, so the upper bound is load-bearing.
@@ -23,6 +25,19 @@ dependencies = [
     "python-dotenv>=1.0.0,<2.0.0",
 ]
 requires-python = ">=3.11,<3.14"
+
+
+# Pin the public PyPI index for dependency resolution.
+#
+# uv otherwise falls back to the machine-level default index. On a corporate
+# workstation that is an authenticated internal mirror, and a lockfile
+# referencing it cannot be installed by Cloud Build (no credentials) - every
+# package 401s during the deployment image build. Declaring the index here
+# keeps `uv.lock` portable and reproducible off the corp network.
+[[tool.uv.index]]
+name = "pypi"
+url = "https://pypi.org/simple"
+default = true
 
 
 [dependency-groups]
